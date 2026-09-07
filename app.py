@@ -1,9 +1,22 @@
-# (기존 app.py 코드 내용 ...)
+from flask import Flask, render_template, request, redirect, url_for, flash
+from flask_sqlalchemy import SQLAlchemy
+from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
 
+# 1. Flask 앱 객체를 먼저 생성해야 합니다!
+app = Flask(__name__)
+app.config['SECRET_KEY'] = 'your-secret-key-here'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///weight.db'
+
+# 2. DB 및 로그인 매니저 설정 ...
+db = SQLAlchemy(app)
+
+# ... (중간 생략: 모델 정의, 기존 라우트 등) ...
+
+# 3. 비밀번호 변경 라우트는 맨 아래쪽에 위치시킵니다.
 @app.route("/change-password", methods=["GET", "POST"])
 @login_required
 def change_password():
-    user = current_user()
+    user = current_user
     if request.method == "POST":
         current_pw = request.form.get("current_password", "")
         new_pw = request.form.get("new_password", "")
