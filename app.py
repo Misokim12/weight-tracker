@@ -1,8 +1,10 @@
-from flask import Flask, render_template, request, redirect, url_for, flash
+from flask import Flask, render_template, request, redirect, url_for, flash, Response
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime
+import csv
+import io
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'your-secret-key-here'
@@ -51,13 +53,11 @@ def index():
     else:
         my_records = WeightRecord.query.filter_by(user_id=current_user.id).order_by(WeightRecord.date.desc()).all()
         
-        # 체중 감량 분석 데이터 계산
         latest_weight = None
         remaining_weight = None
         progress_pct = 0
         
         if my_records:
-            # 가장 최근 입력된 체중 가져오기 (훈련 후 우선, 없으면 훈련 전)
             for r in my_records:
                 if r.weight_after:
                     latest_weight = r.weight_after
@@ -68,11 +68,9 @@ def index():
         
         if latest_weight and current_user.target_weight:
             remaining_weight = round(latest_weight - current_user.target_weight, 2)
-            # 달성률 계산 (목표 이하 달성 시 100%)
             if remaining_weight <= 0:
                 progress_pct = 100
             else:
-                # 초기 체중 대비 계산 (기록 중 가장 오래된 체중 기준)
                 first_rec = my_records[-1]
                 initial_weight = first_rec.weight_before or first_rec.weight_after or latest_weight
                 total_to_lose = initial_weight - current_user.target_weight
@@ -96,6 +94,42 @@ def set_target_weight():
         db.session.commit()
         flash("목표 체중이 설정되었습니다.", "success")
     return redirect(url_for("index"))
+
+# [지도자] 전체 체중 기록 엑셀(CSV) 다운로드
+@app.route("/export-csv")
+@login_required
+def export_csv():
+    if current_user.role != "admin":
+        return redirect(url_for("index"))
+
+    si = io.StringIO()
+    # 엑셀 한글 깨짐 방지 BOM 추가
+    si.write('\ufeff')
+    cw = csv.writer(si)
+    
+    # 헤더 작성
+    cw.writerow(['선수 이름', '아이디', '날짜', '목표 체중(kg)', '훈련 전(kg)', '훈련 후(kg)', '오늘 감량폭(kg)'])
+    
+    # 모든 선수 및 기록 조회 (날짜 내림차순)
+    records = WeightRecord.query.order_by(WeightRecord.date.desc()).all()
+    for r in records:
+        athlete = User.query.get(r.user_id)
+        if athlete:
+            diff = round(r.weight_after - r.weight_before, 2) if (r.weight_before and r.weight_after) else ''
+            cw.writerow([
+                athlete.name,
+                athlete.username,
+                r.date,
+                athlete.target_weight or '',
+                r.weight_before or '',
+                r.weight_after or '',
+                diff
+            ])
+
+    output = Response(si.getvalue(), mimetype='text/csv')
+    today_str = datetime.now().strftime('%Y%m%d')
+    output.headers["Content-Disposition"] = f"attachment; filename=athlete_weights_{today_str}.csv"
+    return output
 
 @app.route("/add-athlete", methods=["POST"])
 @login_required
