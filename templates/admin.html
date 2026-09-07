@@ -10,18 +10,18 @@
         .nav { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #eee; padding-bottom: 15px; margin-bottom: 15px; }
         a { color: #172033; text-decoration: none; font-weight: bold; margin-left: 10px; }
         table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-        th, td { border: 1px solid #ddd; padding: 10px; text-align: center; }
+        th, td { border: 1px solid #ddd; padding: 12px 10px; text-align: center; }
         th { background-color: #f0f4f8; }
-        input[type="text"], input[type="number"] { padding: 6px; border: 1px solid #ccc; border-radius: 4px; }
-        .btn { padding: 6px 12px; background: #172033; color: white; border: none; border-radius: 4px; cursor: pointer; }
-        .btn-del { padding: 5px 10px; background: #d9534f; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; }
+        input[type="text"] { padding: 8px; border: 1px solid #ccc; border-radius: 4px; }
+        .btn { padding: 8px 14px; background: #172033; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; }
+        .btn-del { padding: 6px 12px; background: #d9534f; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 13px; }
         .msg { background: #e8f4ea; color: #2e7d32; padding: 10px; border-radius: 4px; margin-bottom: 15px; }
     </style>
 </head>
 <body>
     <div class="card">
         <div class="nav">
-            <div><strong>{{ current_user.name }}</strong> 코치님 관리 시스템</div>
+            <div><strong>{{ current_user.name }}</strong> 지도자 관리 시스템</div>
             <div>
                 <a href="{{ url_for('change_password') }}">🔒 비밀번호 변경</a>
                 <a href="{{ url_for('logout') }}" style="color:#d9534f;">로그아웃</a>
@@ -38,14 +38,14 @@
 
         <h3>1. 신규 선수 등록</h3>
         <form action="{{ url_for('add_athlete') }}" method="POST" style="display:flex; gap:10px;">
-            <input type="text" name="username" placeholder="선수 아이디" required>
-            <input type="text" name="name" placeholder="선수 이름" required>
+            <input type="text" name="username" placeholder="선수 아이디" required style="flex:1;">
+            <input type="text" name="name" placeholder="선수 이름" required style="flex:1;">
             <button type="submit" class="btn">선수 등록</button>
         </form>
     </div>
 
     <div class="card">
-        <h3>2. 오늘({{ today }}) 선수 훈련 전/후 체중 기록 및 명단 관리</h3>
+        <h3>2. 오늘({{ today }}) 선수 훈련 전/후 체중 현황</h3>
         <table>
             <thead>
                 <tr>
@@ -54,7 +54,6 @@
                     <th>훈련 전(kg)</th>
                     <th>훈련 후(kg)</th>
                     <th>변화량</th>
-                    <th>체중 기록 저장</th>
                     <th>선수 관리</th>
                 </tr>
             </thead>
@@ -68,21 +67,15 @@
                     <td>{{ rec.weight_after if rec and rec.weight_after else '-' }}</td>
                     <td>
                         {% if rec and rec.weight_before and rec.weight_after %}
-                            {{ (rec.weight_after - rec.weight_before) | round(2) }} kg
+                            <strong style="color: {% if rec.weight_after - rec.weight_before < 0 %}#2e7d32{% else %}#d9534f{% endif %};">
+                                {{ (rec.weight_after - rec.weight_before) | round(2) }} kg
+                            </strong>
                         {% else %}
                             -
                         {% endif %}
                     </td>
                     <td>
-                        <form action="{{ url_for('record_weight') }}" method="POST" style="display:flex; gap:5px; justify-content:center;">
-                            <input type="hidden" name="user_id" value="{{ athlete.id }}">
-                            <input type="number" step="0.1" name="weight_before" placeholder="전" style="width:60px;" value="{{ rec.weight_before if rec and rec.weight_before }}">
-                            <input type="number" step="0.1" name="weight_after" placeholder="후" style="width:60px;" value="{{ rec.weight_after if rec and rec.weight_after }}">
-                            <button type="submit" class="btn">저장</button>
-                        </form>
-                    </td>
-                    <td>
-                        <!-- 삭제 버튼 -->
+                        <!-- 선수 삭제 버튼 -->
                         <form action="{{ url_for('delete_athlete', user_id=athlete.id) }}" method="POST" onsubmit="return confirm('정말 \'{{ athlete.name }}\' 선수를 삭제하시겠습니까?');">
                             <button type="submit" class="btn-del">삭제</button>
                         </form>
@@ -90,7 +83,7 @@
                 </tr>
                 {% else %}
                 <tr>
-                    <td colspan="7">등록된 선수가 없습니다. 상단에서 선수를 추가해 주세요.</td>
+                    <td colspan="6">등록된 선수가 없습니다. 상단에서 선수를 등록해 주세요.</td>
                 </tr>
                 {% endfor %}
             </tbody>
