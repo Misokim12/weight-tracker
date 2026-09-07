@@ -40,3 +40,18 @@ def change_password():
         return redirect(url_for("index"))
 
     return render_template("change_password.html")
+@app.cli.command("init-db")
+def init_db_command():
+    """데이터베이스를 초기화하고 초기 관리자(coach) 계정을 생성합니다."""
+    db.create_all()
+    
+    # 이미 coach 계정이 있는지 확인
+    coach = User.query.filter_by(username="coach").first()
+    if not coach:
+        coach = User(username="coach", role="admin")
+        coach.set_password("CHANGE_ME_NOW")
+        db.session.add(coach)
+        db.session.commit()
+        print("관리자 생성 완료: coach")
+    else:
+        print("이미 관리자 계정이 존재합니다.")
