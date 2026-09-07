@@ -4,7 +4,6 @@ from flask_login import LoginManager, UserMixin, login_user, logout_user, login_
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime
 
-# 1. 앱 객체를 가장 먼저 생성합니다.
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'your-secret-key-here'
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///weight.db'
@@ -20,6 +19,7 @@ class User(UserMixin, db.Model):
     name = db.Column(db.String(80), nullable=False)
     password_hash = db.Column(db.String(128), nullable=False)
     role = db.Column(db.String(20), default="athlete")
+    target_weight = db.Column(db.Float, nullable=True)  # 목표 체중(kg)
     records = db.relationship('WeightRecord', backref='athlete', lazy=True, cascade="all, delete-orphan")
 
     def set_password(self, password):
@@ -50,7 +50,52 @@ def index():
         return render_template("admin.html", athletes=athletes, records=records, today=today)
     else:
         my_records = WeightRecord.query.filter_by(user_id=current_user.id).order_by(WeightRecord.date.desc()).all()
-        return render_template("index.html", records=my_records)
+        
+        # 체중 감량 분석 데이터 계산
+        latest_weight = None
+        remaining_weight = None
+        progress_pct = 0
+        
+        if my_records:
+            # 가장 최근 입력된 체중 가져오기 (훈련 후 우선, 없으면 훈련 전)
+            for r in my_records:
+                if r.weight_after:
+                    latest_weight = r.weight_after
+                    break
+                elif r.weight_before:
+                    latest_weight = r.weight_before
+                    break
+        
+        if latest_weight and current_user.target_weight:
+            remaining_weight = round(latest_weight - current_user.target_weight, 2)
+            # 달성률 계산 (목표 이하 달성 시 100%)
+            if remaining_weight <= 0:
+                progress_pct = 100
+            else:
+                # 초기 체중 대비 계산 (기록 중 가장 오래된 체중 기준)
+                first_rec = my_records[-1]
+                initial_weight = first_rec.weight_before or first_rec.weight_after or latest_weight
+                total_to_lose = initial_weight - current_user.target_weight
+                if total_to_lose > 0:
+                    lost = initial_weight - latest_weight
+                    progress_pct = min(100, max(0, int((lost / total_to_lose) * 100)))
+
+        return render_template("index.html", 
+                               records=my_records, 
+                               latest_weight=latest_weight, 
+                               remaining_weight=remaining_weight, 
+                               progress_pct=progress_pct)
+
+# [선수] 목표 체중 설정
+@app.route("/set-target-weight", methods=["POST"])
+@login_required
+def set_target_weight():
+    target = request.form.get("target_weight")
+    if target and target.strip():
+        current_user.target_weight = float(target)
+        db.session.commit()
+        flash("목표 체중이 설정되었습니다.", "success")
+    return redirect(url_for("index"))
 
 @app.route("/add-athlete", methods=["POST"])
 @login_required
@@ -95,7 +140,7 @@ def record_weight():
     w_before = request.form.get("weight_before")
     w_after = request.form.get("weight_after")
     
-    target_id = request.form.get("user_id") if current_user.role == "admin" else current_user.id
+    target_id = current_user.id
     
     record = WeightRecord.query.filter_by(user_id=target_id, date=date_str).first()
     if not record:
@@ -161,7 +206,7 @@ def init_db_command():
     db.create_all()
     coach = User.query.filter_by(username="coach").first()
     if not coach:
-        coach = User(username="coach", name="코치님", role="admin")
+        coach = User(username="coach", name="지도자", role="admin")
         coach.set_password("CHANGE_ME_NOW")
         db.session.add(coach)
         db.session.commit()
