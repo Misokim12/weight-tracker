@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>체중 기록 - 선수용</title>
+    <style>
+        body { font-family: sans-serif; padding: 20px; max-width: 600px; margin: 0 auto; background-color: #f5f7fb; }
+        .card { background: white; padding: 25px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .nav { display: flex; justify-content: space-between; align-items: center; padding-bottom: 15px; border-bottom: 1px solid #eee; margin-bottom: 20px; }
+        a { color: #172033; text-decoration: none; font-weight: bold; margin-left: 15px; }
+        .btn-danger { color: #d9534f; }
+        h2 { color: #172033; margin-top: 0; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <div class="nav">
+            <div><strong>{{ current_user.username }}</strong> 선수 환영합니다.</div>
+            <div>
+                <a href="{{ url_for('change_password') }}">🔒 비밀번호 변경</a>
+                <a href="{{ url_for('logout') }}" class="btn-danger">로그아웃</a>
+            </div>
+        </div>
+        <h2>내 체중 기록하기</h2>
+        <p>체중 입력 및 개인 기록 확인 페이지입니다.</p>
+    </div>
+</body>
+</html>
