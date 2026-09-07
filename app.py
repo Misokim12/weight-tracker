@@ -11,12 +11,12 @@ db = SQLAlchemy(app)
 login_manager = LoginManager(app)
 login_manager.login_view = 'login'
 
-# --- DB 모델 ---
+# --- 1. DB 모델 정의 ---
 class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False)
     password_hash = db.Column(db.String(128), nullable=False)
-    role = db.Column(db.String(20), default="athlete")
+    role = db.Column(db.String(20), default="athlete")  # "admin" 또는 "athlete"
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
@@ -28,7 +28,9 @@ class User(UserMixin, db.Model):
 def load_user(user_id):
     return User.query.get(int(user_id))
 
-# --- 라우트 (페이지) ---
+# --- 2. 라우트 (페이지 연결) ---
+
+# 메인 페이지 (로그인 상태에 따라 화면 분기)
 @app.route("/")
 @login_required
 def index():
@@ -36,24 +38,29 @@ def index():
         return render_template("admin.html")
     return render_template("index.html")
 
+# 로그인 페이지
 @app.route("/login", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
         username = request.form.get("username")
         password = request.form.get("password")
         user = User.query.filter_by(username=username).first()
+        
         if user and user.check_password(password):
             login_user(user)
             return redirect(url_for("index"))
+            
         flash("아이디 또는 비밀번호가 올바르지 않습니다.", "error")
     return render_template("login.html")
 
+# 로그아웃
 @app.route("/logout")
 @login_required
 def logout():
     logout_user()
     return redirect(url_for("login"))
 
+# 비밀번호 변경 페이지
 @app.route("/change-password", methods=["GET", "POST"])
 @login_required
 def change_password():
@@ -81,7 +88,7 @@ def change_password():
 
     return render_template("change_password.html")
 
-# --- CLI 명령어 ---
+# --- 3. CLI 명령어 (DB 초기화 및 초기 코치 계정 생성) ---
 @app.cli.command("init-db")
 def init_db_command():
     db.create_all()
