@@ -1,18 +1,28 @@
 from flask import Flask, render_template, request, redirect, url_for, flash
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
+from werkzeug.security import generate_password_hash, check_password_hash
 
-# 1. Flask 앱 객체를 먼저 생성해야 합니다!
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'your-secret-key-here'
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///weight.db'
 
-# 2. DB 및 로그인 매니저 설정 ...
 db = SQLAlchemy(app)
 
-# ... (중간 생략: 모델 정의, 기존 라우트 등) ...
+# --- 1. User DB 모델 정의 ---
+class User(UserMixin, db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(80), unique=True, nullable=False)
+    password_hash = db.Column(db.String(128), nullable=False)
+    role = db.Column(db.String(20), default="athlete")  # "admin" 또는 "athlete"
 
-# 3. 비밀번호 변경 라우트는 맨 아래쪽에 위치시킵니다.
+    def set_password(self, password):
+        self.password_hash = generate_password_hash(password)
+
+    def check_password(self, password):
+        return check_password_hash(self.password_hash, password)
+
+# --- 2. 비밀번호 변경 라우트 ---
 @app.route("/change-password", methods=["GET", "POST"])
 @login_required
 def change_password():
@@ -40,12 +50,13 @@ def change_password():
         return redirect(url_for("index"))
 
     return render_template("change_password.html")
+
+# --- 3. DB 초기화 CLI 명령어 (User 클래스 아래에 위치) ---
 @app.cli.command("init-db")
 def init_db_command():
     """데이터베이스를 초기화하고 초기 관리자(coach) 계정을 생성합니다."""
     db.create_all()
     
-    # 이미 coach 계정이 있는지 확인
     coach = User.query.filter_by(username="coach").first()
     if not coach:
         coach = User(username="coach", role="admin")
