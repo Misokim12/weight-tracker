@@ -63,6 +63,12 @@ def init_db_command():
         coach.set_password("CHANGE_ME_NOW")
         db.session.add(coach)
         db.session.commit()
+        @app.route("/")
+@login_required
+def index():
+    if current_user.role == "admin":
+        return render_template("admin.html")
+    return render_template("index.html")
         print("관리자 생성 완료: coach")
     else:
         print("이미 관리자 계정이 존재합니다.")
