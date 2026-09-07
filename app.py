@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for, flash, Response
+from flask import Flask, render_template, request, redirect, url_for, flash, Response, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -84,6 +84,33 @@ def index():
                                remaining_weight=remaining_weight, 
                                progress_pct=progress_pct)
 
+# [지도자] 특정 선수의 전체 체중 기록 JSON API
+@app.route("/athlete-records/<int:user_id>")
+@login_required
+def athlete_records(user_id):
+    if current_user.role != "admin":
+        return jsonify({"error": "권한이 없습니다."}), 403
+    
+    athlete = User.query.get_or_404(user_id)
+    records = WeightRecord.query.filter_by(user_id=user_id).order_by(WeightRecord.date.desc()).all()
+    
+    record_list = []
+    for r in records:
+        diff = round(r.weight_after - r.weight_before, 2) if (r.weight_before and r.weight_after) else None
+        record_list.append({
+            "date": r.date,
+            "weight_before": r.weight_before,
+            "weight_after": r.weight_after,
+            "diff": diff
+        })
+        
+    return jsonify({
+        "name": athlete.name,
+        "username": athlete.username,
+        "target_weight": athlete.target_weight,
+        "records": record_list
+    })
+
 # [선수] 목표 체중 설정
 @app.route("/set-target-weight", methods=["POST"])
 @login_required
@@ -103,14 +130,11 @@ def export_csv():
         return redirect(url_for("index"))
 
     si = io.StringIO()
-    # 엑셀 한글 깨짐 방지 BOM 추가
     si.write('\ufeff')
     cw = csv.writer(si)
     
-    # 헤더 작성
     cw.writerow(['선수 이름', '아이디', '날짜', '목표 체중(kg)', '훈련 전(kg)', '훈련 후(kg)', '오늘 감량폭(kg)'])
     
-    # 모든 선수 및 기록 조회 (날짜 내림차순)
     records = WeightRecord.query.order_by(WeightRecord.date.desc()).all()
     for r in records:
         athlete = User.query.get(r.user_id)
