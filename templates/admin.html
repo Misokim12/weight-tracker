@@ -5,15 +5,16 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>코치 관리자 페이지</title>
     <style>
-        body { font-family: sans-serif; padding: 20px; max-width: 900px; margin: 0 auto; background-color: #f5f7fb; }
+        body { font-family: sans-serif; padding: 20px; max-width: 950px; margin: 0 auto; background-color: #f5f7fb; }
         .card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 20px; }
         .nav { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #eee; padding-bottom: 15px; margin-bottom: 15px; }
         a { color: #172033; text-decoration: none; font-weight: bold; margin-left: 10px; }
         table { width: 100%; border-collapse: collapse; margin-top: 10px; }
         th, td { border: 1px solid #ddd; padding: 10px; text-align: center; }
         th { background-color: #f0f4f8; }
-        input[type="text"], input[type="number"], input[type="date"] { padding: 6px; border: 1px solid #ccc; border-radius: 4px; }
+        input[type="text"], input[type="number"] { padding: 6px; border: 1px solid #ccc; border-radius: 4px; }
         .btn { padding: 6px 12px; background: #172033; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        .btn-del { padding: 5px 10px; background: #d9534f; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; }
         .msg { background: #e8f4ea; color: #2e7d32; padding: 10px; border-radius: 4px; margin-bottom: 15px; }
     </style>
 </head>
@@ -44,7 +45,7 @@
     </div>
 
     <div class="card">
-        <h3>2.오늘({{ today }}) 선수 훈련 전/후 체중 기록 및 현황</h3>
+        <h3>2. 오늘({{ today }}) 선수 훈련 전/후 체중 기록 및 명단 관리</h3>
         <table>
             <thead>
                 <tr>
@@ -52,8 +53,9 @@
                     <th>아이디</th>
                     <th>훈련 전(kg)</th>
                     <th>훈련 후(kg)</th>
-                    <th>감량/변화량</th>
-                    <th>기록 입력/수정</th>
+                    <th>변화량</th>
+                    <th>체중 기록 저장</th>
+                    <th>선수 관리</th>
                 </tr>
             </thead>
             <tbody>
@@ -79,10 +81,16 @@
                             <button type="submit" class="btn">저장</button>
                         </form>
                     </td>
+                    <td>
+                        <!-- 삭제 버튼 -->
+                        <form action="{{ url_for('delete_athlete', user_id=athlete.id) }}" method="POST" onsubmit="return confirm('정말 \'{{ athlete.name }}\' 선수를 삭제하시겠습니까?');">
+                            <button type="submit" class="btn-del">삭제</button>
+                        </form>
+                    </td>
                 </tr>
                 {% else %}
                 <tr>
-                    <td colspan="6">등록된 선수가 없습니다. 상단에서 선수를 추가해 주세요.</td>
+                    <td colspan="7">등록된 선수가 없습니다. 상단에서 선수를 추가해 주세요.</td>
                 </tr>
                 {% endfor %}
             </tbody>
