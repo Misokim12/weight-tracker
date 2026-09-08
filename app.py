@@ -157,3 +157,32 @@ if __name__ == '__main__':
     with app.app_context():
         db.create_all()
     app.run(debug=True)
+import csv
+from io import StringIO
+from flask import make_response
+
+@app.route('/export_csv')
+@login_required
+def export_csv():
+    if current_user.role != 'admin':
+        return redirect(url_for('index'))
+    
+    si = StringIO()
+    cw = csv.writer(si)
+    cw.writerow(['선수ID', '이름', '날짜', '훈련 전 체중', '훈련 후 체중', '훈련일지'])
+    
+    records = WeightRecord.query.order_by(WeightRecord.date.desc()).all()
+    for r in records:
+        cw.writerow([
+            r.user_id,
+            r.user.username if r.user else '',
+            r.date,
+            r.weight_before,
+            r.weight_after,
+            r.journal
+        ])
+        
+    output = make_response(si.getvalue().encode('utf-8-sig'))
+    output.headers["Content-Disposition"] = "attachment; filename=weight_records.csv"
+    output.headers["Content-type"] = "text/csv; charset=utf-8-sig"
+    return output
