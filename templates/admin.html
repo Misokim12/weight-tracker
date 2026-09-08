@@ -33,7 +33,7 @@
         <div class="nav">
             <div><strong>{{ current_user.name }}</strong> 지도자 관리 시스템</div>
             <div>
-                <a href="{{ url_for('export_csv') }}" class="btn-excel" style="color:white; margin-right:15px;">📥 전체 기록 엑셀(CSV) 다운로드</a>
+                
                 <a href="{{ url_for('change_password') }}">🔒 비밀번호 변경</a>
                 <a href="{{ url_for('logout') }}" style="color:#d9534f;">로그아웃</a>
             </div>
