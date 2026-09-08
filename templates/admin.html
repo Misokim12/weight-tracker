@@ -3,37 +3,20 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>코치 관리자 페이지</title>
+    <title>관리자 페이지</title>
     <style>
-        body { font-family: sans-serif; padding: 20px; max-width: 1000px; margin: 0 auto; background-color: #f5f7fb; }
+        body { font-family: sans-serif; padding: 20px; max-width: 800px; margin: 0 auto; background-color: #f5f7fb; }
         .card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 20px; }
         .nav { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #eee; padding-bottom: 15px; margin-bottom: 15px; }
         a { color: #172033; text-decoration: none; font-weight: bold; margin-left: 10px; }
-        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-        th, td { border: 1px solid #ddd; padding: 12px 8px; text-align: center; }
-        th { background-color: #f0f4f8; }
-        input[type="text"] { padding: 8px; border: 1px solid #ccc; border-radius: 4px; }
-        .btn { padding: 8px 14px; background: #172033; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; }
-        .btn-excel { padding: 8px 14px; background: #2e7d32; color: white; border-radius: 4px; font-weight: bold; text-decoration: none; display: inline-block; }
-        .btn-view { padding: 6px 10px; background: #0288d1; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: bold; }
-        .btn-del { padding: 6px 10px; background: #d9534f; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 13px; }
         .msg { background: #e8f4ea; color: #2e7d32; padding: 10px; border-radius: 4px; margin-bottom: 15px; }
-        .badge-done { background: #e8f4ea; color: #2e7d32; padding: 3px 8px; border-radius: 12px; font-weight: bold; font-size: 13px; }
-
-        /* 모달 레이어 팝업 스타일 */
-        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; z-index: 1000; }
-        .modal-content { background: white; padding: 25px; border-radius: 8px; max-width: 750px; width: 90%; max-height: 80vh; overflow-y: auto; box-shadow: 0 4px 10px rgba(0,0,0,0.3); }
-        .modal-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #172033; padding-bottom: 10px; margin-bottom: 15px; }
-        .modal-close { background: none; border: none; font-size: 20px; cursor: pointer; font-weight: bold; }
-        .journal-text { background: #f8f9fa; text-align: left; padding: 8px; font-size: 13px; color: #333; border-radius: 4px; border-left: 3px solid #0288d1; white-space: pre-wrap; }
     </style>
 </head>
 <body>
     <div class="card">
         <div class="nav">
-            <div><strong>{{ current_user.name }}</strong> 지도자 관리 시스템</div>
+            <div><strong>관리자</strong> 페이지</div>
             <div>
-                
                 <a href="{{ url_for('change_password') }}">🔒 비밀번호 변경</a>
                 <a href="{{ url_for('logout') }}" style="color:#d9534f;">로그아웃</a>
             </div>
@@ -47,166 +30,8 @@
           {% endif %}
         {% endwith %}
 
-        <h3>1. 신규 선수 등록</h3>
-       <form action="{{ url_for('add_athlete') }}" method="POST" style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
-    <input type="text" name="username" placeholder="아이디" required style="padding:8px;">
-    <input type="password" name="password" placeholder="비밀번호" required style="padding:8px;">
-    <input type="text" name="name" placeholder="선수 이름 (예: 홍길동)" style="padding:8px;">
-    <button type="submit" class="btn-sm">선수 등록</button>
-</form>
+        <h3>관리자 시스템 정상 작동 중</h3>
+        <p>선수 추가 기능이 제거된 안정화된 기본 버전입니다.</p>
     </div>
-
-    <div class="card">
-        <h3>2. 오늘({{ today }}) 선수별 체중 현황 및 감량 관리</h3>
-        <table>
-            <thead>
-                <tr>
-                    <th>선수 이름</th>
-                    <th>아이디</th>
-                    <th>목표 체중</th>
-                    <th>훈련 전(kg)</th>
-                    <th>훈련 후(kg)</th>
-                    <th>오늘 감량폭</th>
-                    <th>목표까지 잔여</th>
-                    <th>상세 기록/일지</th>
-                    <th>선수 관리</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for athlete in athletes %}
-                {% set rec = (records | selectattr("user_id", "equalto", athlete.id) | list | first) %}
-                
-                {% set current_w = rec.weight_after if rec and rec.weight_after else (rec.weight_before if rec and rec.weight_before else None) %}
-                {% set rem_w = (current_w - athlete.target_weight) | round(2) if current_w and athlete.target_weight else None %}
-                
-                <tr>
-                    <td><strong>{{ athlete.name }}</strong></td>
-                    <td>{{ athlete.username }}</td>
-                    <td>
-                        {% if athlete.target_weight %}
-                            <strong style="color:#172033;">{{ athlete.target_weight }} kg</strong>
-                        {% else %}
-                            <span style="color:#999; font-size:12px;">미설정</span>
-                        {% endif %}
-                    </td>
-                    <td>{{ rec.weight_before if rec and rec.weight_before else '-' }}</td>
-                    <td>{{ rec.weight_after if rec and rec.weight_after else '-' }}</td>
-                    <td>
-                        {% if rec and rec.weight_before and rec.weight_after %}
-                            <span style="color: {% if rec.weight_after - rec.weight_before < 0 %}#2e7d32{% else %}#d9534f{% endif %}; font-weight:bold;">
-                                {{ (rec.weight_after - rec.weight_before) | round(2) }} kg
-                            </span>
-                        {% else %}
-                            -
-                        {% endif %}
-                    </td>
-                    <td>
-                        {% if rem_w is not none %}
-                            {% if rem_w <= 0 %}
-                                <span class="badge-done">달성! 🎉</span>
-                            {% else %}
-                                <strong style="color:#d9534f;">-{{ rem_w }} kg</strong>
-                            {% endif %}
-                        {% else %}
-                            -
-                        {% endif %}
-                    </td>
-                    <td>
-                        <button class="btn-view" onclick="openAthleteModal({{ athlete.id }})">📋 기록 보기</button>
-                    </td>
-                    <td>
-                        <form action="{{ url_for('delete_athlete', user_id=athlete.id) }}" method="POST" onsubmit="return confirm('정말 \'{{ athlete.name }}\' 선수를 삭제하시겠습니까?');">
-                            <button type="submit" class="btn-del">삭제</button>
-                        </form>
-                    </td>
-                </tr>
-                {% else %}
-                <tr>
-                    <td colspan="9">등록된 선수가 없습니다. 상단에서 선수를 등록해 주세요.</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
-
-    <!-- 개별 선수 기록 및 훈련일지 조회 모달 팝업 -->
-    <div id="athleteModal" class="modal-overlay" onclick="closeAthleteModal(event)">
-        <div class="modal-content" onclick="event.stopPropagation()">
-            <div class="modal-header">
-                <h3 id="modalTitle" style="margin:0;">선수 체중 및 훈련일지 이력</h3>
-                <button class="modal-close" onclick="closeAthleteModal()">&times;</button>
-            </div>
-            <div id="modalSubInfo" style="margin-bottom: 15px; font-size: 14px; color: #555;"></div>
-            <table>
-                <thead>
-                    <tr>
-                        <th style="width:15%;">날짜</th>
-                        <th style="width:15%;">훈련 전</th>
-                        <th style="width:15%;">훈련 후</th>
-                        <th style="width:15%;">감량폭</th>
-                        <th style="width:40%;">훈련일지 / 메모</th>
-                    </tr>
-                </thead>
-                <tbody id="modalTableBody">
-                    <tr><td colspan="5">데이터를 불러오는 중...</td></tr>
-                </tbody>
-            </table>
-        </div>
-    </div>
-
-    <script>
-        function openAthleteModal(athleteId) {
-            const modal = document.getElementById('athleteModal');
-            const modalTitle = document.getElementById('modalTitle');
-            const modalSubInfo = document.getElementById('modalSubInfo');
-            const tableBody = document.getElementById('modalTableBody');
-
-            tableBody.innerHTML = '<tr><td colspan="5">데이터를 불러오는 중...</td></tr>';
-            modal.style.display = 'flex';
-
-            fetch('/athlete-records/' + athleteId)
-                .then(response => response.json())
-                .then(data => {
-                    modalTitle.innerText = data.name + ' (' + data.username + ') 선수의 전체 기록';
-                    modalSubInfo.innerText = '목표 체중: ' + (data.target_weight ? data.target_weight + ' kg' : '미설정');
-
-                    if (data.records.length === 0) {
-                        tableBody.innerHTML = '<tr><td colspan="5">기록된 데이터가 없습니다.</td></tr>';
-                        return;
-                    }
-
-                    let rowsHtml = '';
-                    data.records.forEach(r => {
-                        const beforeStr = r.weight_before !== null ? r.weight_before + ' kg' : '-';
-                        const afterStr = r.weight_after !== null ? r.weight_after + ' kg' : '-';
-                        const diffStr = r.diff !== null ? (r.diff + ' kg') : '-';
-                        const diffStyle = r.diff < 0 ? 'color:#2e7d32; font-weight:bold;' : 'color:#333;';
-                        const journalHtml = r.journal ? `<div class="journal-text">${r.journal}</div>` : '-';
-
-                        rowsHtml += `
-                            <tr>
-                                <td>${r.date}</td>
-                                <td>${beforeStr}</td>
-                                <td>${afterStr}</td>
-                                <td style="${diffStyle}">${diffStr}</td>
-                                <td>${journalHtml}</td>
-                            </tr>
-                        `;
-                    });
-                    tableBody.innerHTML = rowsHtml;
-                })
-                .catch(err => {
-                    tableBody.innerHTML = '<tr><td colspan="5" style="color:red;">데이터를 불러오는 중 오류가 발생했습니다.</td></tr>';
-                });
-        }
-
-        function closeAthleteModal(event) {
-            document.getElementById('athleteModal').style.display = 'none';
-        }
-
-        document.addEventListener('keydown', function(e) {
-            if (e.key === 'Escape') closeAthleteModal();
-        });
-    </script>
 </body>
 </html>
