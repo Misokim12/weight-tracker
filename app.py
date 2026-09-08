@@ -61,6 +61,19 @@ def logout():
     logout_user()
     return redirect(url_for('login'))
 
+@app.route('/change-password', methods=['GET', 'POST'])
+@login_required
+def change_password():
+    if request.method == 'POST':
+        new_password = request.form.get('password')
+        if new_password:
+            current_user.password = new_password
+            db.session.commit()
+            flash('비밀번호가 성공적으로 변경되었습니다.')
+            return redirect(url_for('index'))
+        flash('새 비밀번호를 입력해주세요.')
+    return render_template('change_password.html')
+
 @app.route('/athlete', methods=['GET', 'POST'])
 @login_required
 def athlete_dashboard():
