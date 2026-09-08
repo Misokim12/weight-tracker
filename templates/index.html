@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>체중 및 훈련일지 기록</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="bg-light">
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>{{ current_user.name }} 선수의 대시보드</h2>
+        <a href="{{ url_for('logout') }}" class="btn btn-outline-danger">로그아웃</a>
+    </div>
+
+    <div class="card mb-4 shadow-sm">
+        <div class="card-body">
+            <h5 class="card-title">오늘의 기록 작성</h5>
+            <form action="{{ url_for('athlete_dashboard') }}" method="POST">
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <label class="form-label">날짜</label>
+                        <input type="date" name="date" class="form-control" required>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">체중 (kg)</label>
+                        <input type="number" step="0.1" name="weight" class="form-control" required>
+                    </div>
+                    <div class="col-md-12">
+                        <label class="form-label">훈련 내용</label>
+                        <textarea name="training_log" class="form-control" rows="3"></textarea>
+                    </div>
+                    <div class="col-md-12">
+                        <label class="form-label">특이사항/비고</label>
+                        <input type="text" name="notes" class="form-control">
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-primary mt-3">저장하기</button>
+            </form>
+        </div>
+    </div>
+
+    <div class="d-flex justify-content-between align-items-center mb-2">
+        <h4>최근 기록 목록</h4>
+        <a href="{{ url_for('export_csv') }}" class="btn btn-success btn-sm">CSV 다운로드</a>
+    </div>
+
+    <table class="table table-striped table-hover bg-white shadow-sm">
+        <thead class="table-dark">
+            <tr>
+                <th>날짜</th>
+                <th>체중(kg)</th>
+                <th>훈련 내용</th>
+                <th>비고</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for r in records %}
+            <tr>
+                <td>{{ r.date }}</td>
+                <td>{{ r.weight }}</td>
+                <td>{{ r.training_log }}</td>
+                <td>{{ r.notes }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+</body>
+</html>
