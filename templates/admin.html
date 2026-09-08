@@ -14,6 +14,7 @@
         th { background-color: #f0f4f8; }
         input[type="text"] { padding: 8px; border: 1px solid #ccc; border-radius: 4px; }
         .btn { padding: 8px 14px; background: #172033; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; }
+        .btn-excel { padding: 8px 14px; background: #2e7d32; color: white; border-radius: 4px; font-weight: bold; text-decoration: none; display: inline-block; }
         .btn-del { padding: 6px 12px; background: #d9534f; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 13px; }
         .msg { background: #e8f4ea; color: #2e7d32; padding: 10px; border-radius: 4px; margin-bottom: 15px; }
         .badge-done { background: #e8f4ea; color: #2e7d32; padding: 3px 8px; border-radius: 12px; font-weight: bold; font-size: 13px; }
@@ -24,6 +25,7 @@
         <div class="nav">
             <div><strong>{{ current_user.name }}</strong> 지도자 관리 시스템</div>
             <div>
+                <a href="{{ url_for('export_csv') }}" class="btn-excel" style="color:white; margin-right:15px;">📥 전체 기록 엑셀(CSV) 다운로드</a>
                 <a href="{{ url_for('change_password') }}">🔒 비밀번호 변경</a>
                 <a href="{{ url_for('logout') }}" style="color:#d9534f;">로그아웃</a>
             </div>
@@ -64,7 +66,6 @@
                 {% for athlete in athletes %}
                 {% set rec = (records | selectattr("user_id", "equalto", athlete.id) | list | first) %}
                 
-                {# 최근 측정 체중 및 잔여 감량량 계산 #}
                 {% set current_w = rec.weight_after if rec and rec.weight_after else (rec.weight_before if rec and rec.weight_before else None) %}
                 {% set rem_w = (current_w - athlete.target_weight) | round(2) if current_w and athlete.target_weight else None %}
                 
