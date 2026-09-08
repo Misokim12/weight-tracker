@@ -5,17 +5,18 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>코치 관리자 페이지</title>
     <style>
-        body { font-family: sans-serif; padding: 20px; max-width: 950px; margin: 0 auto; background-color: #f5f7fb; }
+        body { font-family: sans-serif; padding: 20px; max-width: 1000px; margin: 0 auto; background-color: #f5f7fb; }
         .card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 20px; }
         .nav { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #eee; padding-bottom: 15px; margin-bottom: 15px; }
         a { color: #172033; text-decoration: none; font-weight: bold; margin-left: 10px; }
         table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-        th, td { border: 1px solid #ddd; padding: 12px 10px; text-align: center; }
+        th, td { border: 1px solid #ddd; padding: 12px 8px; text-align: center; }
         th { background-color: #f0f4f8; }
         input[type="text"] { padding: 8px; border: 1px solid #ccc; border-radius: 4px; }
         .btn { padding: 8px 14px; background: #172033; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; }
         .btn-del { padding: 6px 12px; background: #d9534f; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 13px; }
         .msg { background: #e8f4ea; color: #2e7d32; padding: 10px; border-radius: 4px; margin-bottom: 15px; }
+        .badge-done { background: #e8f4ea; color: #2e7d32; padding: 3px 8px; border-radius: 12px; font-weight: bold; font-size: 13px; }
     </style>
 </head>
 <body>
@@ -45,37 +46,61 @@
     </div>
 
     <div class="card">
-        <h3>2. 오늘({{ today }}) 선수 훈련 전/후 체중 현황</h3>
+        <h3>2. 오늘({{ today }}) 선수별 체중 현황 및 감량 관리</h3>
         <table>
             <thead>
                 <tr>
                     <th>선수 이름</th>
                     <th>아이디</th>
+                    <th>목표 체중</th>
                     <th>훈련 전(kg)</th>
                     <th>훈련 후(kg)</th>
-                    <th>변화량</th>
+                    <th>오늘 감량폭</th>
+                    <th>목표까지 잔여</th>
                     <th>선수 관리</th>
                 </tr>
             </thead>
             <tbody>
                 {% for athlete in athletes %}
                 {% set rec = (records | selectattr("user_id", "equalto", athlete.id) | list | first) %}
+                
+                {# 최근 측정 체중 및 잔여 감량량 계산 #}
+                {% set current_w = rec.weight_after if rec and rec.weight_after else (rec.weight_before if rec and rec.weight_before else None) %}
+                {% set rem_w = (current_w - athlete.target_weight) | round(2) if current_w and athlete.target_weight else None %}
+                
                 <tr>
                     <td><strong>{{ athlete.name }}</strong></td>
                     <td>{{ athlete.username }}</td>
+                    <td>
+                        {% if athlete.target_weight %}
+                            <strong style="color:#172033;">{{ athlete.target_weight }} kg</strong>
+                        {% else %}
+                            <span style="color:#999; font-size:12px;">미설정</span>
+                        {% endif %}
+                    </td>
                     <td>{{ rec.weight_before if rec and rec.weight_before else '-' }}</td>
                     <td>{{ rec.weight_after if rec and rec.weight_after else '-' }}</td>
                     <td>
                         {% if rec and rec.weight_before and rec.weight_after %}
-                            <strong style="color: {% if rec.weight_after - rec.weight_before < 0 %}#2e7d32{% else %}#d9534f{% endif %};">
+                            <span style="color: {% if rec.weight_after - rec.weight_before < 0 %}#2e7d32{% else %}#d9534f{% endif %}; font-weight:bold;">
                                 {{ (rec.weight_after - rec.weight_before) | round(2) }} kg
-                            </strong>
+                            </span>
                         {% else %}
                             -
                         {% endif %}
                     </td>
                     <td>
-                        <!-- 선수 삭제 버튼 -->
+                        {% if rem_w is not none %}
+                            {% if rem_w <= 0 %}
+                                <span class="badge-done">달성! 🎉</span>
+                            {% else %}
+                                <strong style="color:#d9534f;">-{{ rem_w }} kg</strong>
+                            {% endif %}
+                        {% else %}
+                            -
+                        {% endif %}
+                    </td>
+                    <td>
                         <form action="{{ url_for('delete_athlete', user_id=athlete.id) }}" method="POST" onsubmit="return confirm('정말 \'{{ athlete.name }}\' 선수를 삭제하시겠습니까?');">
                             <button type="submit" class="btn-del">삭제</button>
                         </form>
@@ -83,7 +108,7 @@
                 </tr>
                 {% else %}
                 <tr>
-                    <td colspan="6">등록된 선수가 없습니다. 상단에서 선수를 등록해 주세요.</td>
+                    <td colspan="8">등록된 선수가 없습니다. 상단에서 선수를 등록해 주세요.</td>
                 </tr>
                 {% endfor %}
             </tbody>
