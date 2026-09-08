@@ -1,8 +1,8 @@
 import os
 import csv
 from io import StringIO
-from datetime import datetime
-from flask import Flask, render_template, request, redirect, url_for, flash, make_response
+from datetime import datetime, date
+from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, make_response
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -10,7 +10,6 @@ from werkzeug.security import generate_password_hash, check_password_hash
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'your-secret-key-here'
 
-# 경로 지정
 basedir = os.path.abspath(os.path.dirname(__file__))
 db_path = os.path.join(basedir, 'instance', 'weight.db')
 app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{db_path}'
@@ -20,7 +19,6 @@ db = SQLAlchemy(app)
 login_manager = LoginManager(app)
 login_manager.login_view = 'login'
 
-# 모델 정의
 class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False)
@@ -49,7 +47,6 @@ class WeightRecord(db.Model):
 def load_user(user_id):
     return User.query.get(int(user_id))
 
-# 메인 대시보드
 @app.route('/')
 @login_required
 def index():
@@ -77,7 +74,6 @@ def index():
         progress_pct=progress_pct
     )
 
-# 기록 저장
 @app.route('/record_weight', methods=['POST'])
 @login_required
 def record_weight():
@@ -100,7 +96,6 @@ def record_weight():
         flash('기록이 성공적으로 저장되었습니다.', 'success')
     return redirect(url_for('index'))
 
-# 목표 체중 설정
 @app.route('/set_target_weight', methods=['POST'])
 @login_required
 def set_target_weight():
@@ -111,7 +106,6 @@ def set_target_weight():
         flash('목표 체중이 설정되었습니다.', 'success')
     return redirect(url_for('index'))
 
-# 로그인
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
@@ -126,14 +120,12 @@ def login():
             flash('아이디 또는 비밀번호가 올바르지 않습니다.', 'error')
     return render_template('login.html')
 
-# 로그아웃
 @app.route('/logout')
 @login_required
 def logout():
     logout_user()
     return redirect(url_for('login'))
 
-# 비밀번호 변경
 @app.route('/change_password', methods=['GET', 'POST'])
 @login_required
 def change_password():
@@ -146,16 +138,17 @@ def change_password():
             return redirect(url_for('index'))
     return render_template('change_password.html')
 
-# 관리자 페이지
 @app.route('/admin')
 @login_required
 def admin():
     if current_user.role != 'admin':
         return redirect(url_for('index'))
-    users = User.query.filter_by(role='athlete').all()
-    return render_template('admin.html', users=users)
+    athletes = User.query.filter_by(role='athlete').all()
+    today_str = date.today().strftime('%Y-%m-%d')
+    today_date = date.today()
+    records = WeightRecord.query.filter_by(date=today_date).all()
+    return render_template('admin.html', athletes=athletes, records=records, today=today_str)
 
-# [추가] 선수 신규 등록
 @app.route('/add_athlete', methods=['POST'])
 @login_required
 def add_athlete():
@@ -163,25 +156,24 @@ def add_athlete():
         return redirect(url_for('index'))
     
     username = request.form.get('username')
-    password = request.form.get('password')
     name = request.form.get('name')
+    password = request.form.get('password', '1234')
 
-    if username and password:
+    if username:
         existing_user = User.query.filter_by(username=username).first()
         if existing_user:
             flash('이미 존재하는 아이디입니다.', 'error')
         else:
-            new_user = User(username=username, name=name if name else username)
-            new_user.set_password(password)
+            new_user = User(username=username, name=name if name else username, role='athlete')
+            new_user.set_password(password if password else '1234')
             db.session.add(new_user)
             db.session.commit()
-            flash('선수가 등록되었습니다.', 'success')
+            flash('선수가 정상적으로 등록되었습니다. (초기 비밀번호: 1234)', 'success')
     return redirect(url_for('admin'))
 
-# [추가] 선수 계정 삭제
-@app.route('/delete_user/<int:user_id>', methods=['POST'])
+@app.route('/delete_athlete/<int:user_id>', methods=['POST'])
 @login_required
-def delete_user(user_id):
+def delete_athlete(user_id):
     if current_user.role != 'admin':
         return redirect(url_for('index'))
     
@@ -189,10 +181,33 @@ def delete_user(user_id):
     if user:
         db.session.delete(user)
         db.session.commit()
-        flash('선수 계정이 삭제되었습니다.', 'success')
+        flash('선수가 삭제되었습니다.', 'success')
     return redirect(url_for('admin'))
 
-# [추가] CSV 엑셀 다운로드
+@app.route('/athlete-records/<int:user_id>')
+@login_required
+def athlete_records(user_id):
+    athlete = User.query.get_or_404(user_id)
+    records = WeightRecord.query.filter_by(user_id=user_id).order_by(WeightRecord.date.desc()).all()
+    
+    record_list = []
+    for r in records:
+        diff = round(r.weight_after - r.weight_before, 2) if (r.weight_after is not None and r.weight_before is not None) else None
+        record_list.append({
+            'date': r.date.strftime('%Y-%m-%d'),
+            'weight_before': r.weight_before,
+            'weight_after': r.weight_after,
+            'diff': diff,
+            'journal': r.journal
+        })
+        
+    return jsonify({
+        'name': athlete.name,
+        'username': athlete.username,
+        'target_weight': athlete.target_weight,
+        'records': record_list
+    })
+
 @app.route('/export_csv')
 @login_required
 def export_csv():
@@ -215,7 +230,7 @@ def export_csv():
             r.journal
         ])
         
-    output = make_response(si.getvalue().encode('utf-8-sig'))
+    output = make_response('\ufeff' + si.getvalue())
     output.headers["Content-Disposition"] = "attachment; filename=weight_records.csv"
     output.headers["Content-type"] = "text/csv; charset=utf-8-sig"
     return output
