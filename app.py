@@ -8,7 +8,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'your-secret-key-here'
 
-# 절대 경로 지정을 통해 instance/weight.db를 확실하게 로드
+# 절대 경로 지정을 통해 instance/weight.db 로드
 basedir = os.path.abspath(os.path.dirname(__file__))
 db_path = os.path.join(basedir, 'instance', 'weight.db')
 app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{db_path}'
@@ -23,7 +23,7 @@ class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False)
     password_hash = db.Column(db.String(120), nullable=False)
-    role = db.Column(db.String(20), default='athlete')  # 'admin' 또는 'athlete'
+    role = db.Column(db.String(20), default='athlete')
     target_weight = db.Column(db.Float, nullable=True)
 
     def set_password(self, password):
@@ -36,9 +36,9 @@ class WeightRecord(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     date = db.Column(db.Date, nullable=False)
-    weight_before = db.Column(db.Float, nullable=False)
+    weight_before = db.Column(db.Float, nullable=True)
     weight_after = db.Column(db.Float, nullable=True)
-    note = db.Column(db.Text, nullable=True)
+    journal = db.Column(db.Text, nullable=True)  # note 대신 journal 사용
 
     user = db.relationship('User', backref=db.backref('records', lazy=True))
 
@@ -53,33 +53,60 @@ def index():
     if current_user.role == 'admin':
         return redirect(url_for('admin'))
     records = WeightRecord.query.filter_by(user_id=current_user.id).order_by(WeightRecord.date.desc()).all()
-    return render_template('index.html', records=records)
-
-# 체중 기록 추가
-@app.route('/athlete/<int:user_id>/records', methods=['POST'])
-@login_required
-def athlete_records(user_id):
-    if current_user.id != user_id and current_user.role != 'admin':
-        flash('권한이 없습니다.', 'error')
-        return redirect(url_for('index'))
     
+    # 최신 체중 및 남은 감량 수치 계산
+    latest_record = records[0] if records else None
+    latest_weight = latest_record.weight_after if (latest_record and latest_record.weight_after) else (latest_record.weight_before if latest_record else None)
+    
+    remaining_weight = None
+    progress_pct = 0
+    if latest_weight and current_user.target_weight:
+        remaining_weight = round(latest_weight - current_user.target_weight, 2)
+        if remaining_weight <= 0:
+            progress_pct = 100
+        else:
+            progress_pct = min(100, max(0, int((1 - (remaining_weight / current_user.target_weight)) * 100)))
+
+    return render_template(
+        'index.html', 
+        records=records, 
+        latest_weight=latest_weight, 
+        remaining_weight=remaining_weight, 
+        progress_pct=progress_pct
+    )
+
+# 기록 저장
+@app.route('/record_weight', methods=['POST'])
+@login_required
+def record_weight():
     date_str = request.form.get('date')
     weight_before = request.form.get('weight_before')
     weight_after = request.form.get('weight_after')
-    note = request.form.get('note')
+    journal = request.form.get('journal')
 
-    if date_str and weight_before:
+    if date_str:
         record_date = datetime.strptime(date_str, '%Y-%m-%d').date()
         new_record = WeightRecord(
-            user_id=user_id,
+            user_id=current_user.id,
             date=record_date,
-            weight_before=float(weight_before),
+            weight_before=float(weight_before) if weight_before else None,
             weight_after=float(weight_after) if weight_after else None,
-            note=note
+            journal=journal
         )
         db.session.add(new_record)
         db.session.commit()
-        flash('체중 기록이 성공적으로 저장되었습니다.', 'success')
+        flash('기록이 성공적으로 저장되었습니다.', 'success')
+    return redirect(url_for('index'))
+
+# 목표 체중 설정
+@app.route('/set_target_weight', methods=['POST'])
+@login_required
+def set_target_weight():
+    target_weight = request.form.get('target_weight')
+    if target_weight:
+        current_user.target_weight = float(target_weight)
+        db.session.commit()
+        flash('목표 체중이 설정되었습니다.', 'success')
     return redirect(url_for('index'))
 
 # 로그인
