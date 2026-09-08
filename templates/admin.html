@@ -1,207 +1,115 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>코치 관리자 페이지</title>
-    <style>
-        body { font-family: sans-serif; padding: 20px; max-width: 1000px; margin: 0 auto; background-color: #f5f7fb; }
-        .card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 20px; }
-        .nav { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #eee; padding-bottom: 15px; margin-bottom: 15px; }
-        a { color: #172033; text-decoration: none; font-weight: bold; margin-left: 10px; }
-        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-        th, td { border: 1px solid #ddd; padding: 12px 8px; text-align: center; }
-        th { background-color: #f0f4f8; }
-        input[type="text"] { padding: 8px; border: 1px solid #ccc; border-radius: 4px; }
-        .btn { padding: 8px 14px; background: #172033; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; }
-        .btn-excel { padding: 8px 14px; background: #2e7d32; color: white; border-radius: 4px; font-weight: bold; text-decoration: none; display: inline-block; }
-        .btn-view { padding: 6px 10px; background: #0288d1; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: bold; }
-        .btn-del { padding: 6px 10px; background: #d9534f; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 13px; }
-        .msg { background: #e8f4ea; color: #2e7d32; padding: 10px; border-radius: 4px; margin-bottom: 15px; }
-        .badge-done { background: #e8f4ea; color: #2e7d32; padding: 3px 8px; border-radius: 12px; font-weight: bold; font-size: 13px; }
 
-        /* 모달 레이어 팝업 스타일 */
-        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; z-index: 1000; }
-        .modal-content { background: white; padding: 25px; border-radius: 8px; max-width: 600px; width: 90%; max-height: 80vh; overflow-y: auto; box-shadow: 0 4px 10px rgba(0,0,0,0.3); }
-        .modal-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #172033; padding-bottom: 10px; margin-bottom: 15px; }
-        .modal-close { background: none; border: none; font-size: 20px; cursor: pointer; font-weight: bold; }
-    </style>
+6
+
+<meta charset="UTF-8">
+<title>지도자 모니터링 대시보드</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
-<body>
-    <div class="card">
-        <div class="nav">
-            <div><strong>{{ current_user.name }}</strong> 지도자 관리 시스템</div>
-            <div>
-                <a href="{{ url_for('export_csv') }}" class="btn-excel" style="color:white; margin-right:15px;">📥 전체 기록 엑셀(CSV) 다운로드</a>
-                <a href="{{ url_for('change_password') }}">🔒 비밀번호 변경</a>
-                <a href="{{ url_for('logout') }}" style="color:#d9534f;">로그아웃</a>
-            </div>
-        </div>
+<body class="bg-light">
+<div class="container py-4">
+<div class="d-flex justify-content-between align-items-center mb-4">
+<h2>선수단 체중 및 훈련 현황</h2>
+<a href="{{ url_for('logout') }}" class="btn btn-outline-danger">로그아웃</a>
+</div>
+<table class="table table-bordered bg-white shadow-sm align-middle">
+<thead class="table-primary text-center">
+<tr>
+<th>선수명</th>
+<th>목표 체중</th>
+<th>최근 측정 체중</th>
+<th>최근 측정일</th>
+<th>체중 그래프</th>
+</tr>
+</thead>
+<tbody class="text-center">
+{% for data in athlete_data %}
+<tr>
+<td><strong>{{ data.info.name }}</strong></td>
+<td>{{ data.info.target_weight or '-' }} kg</td>
+<td>{{ data.latest_record.weight if data.latest_record else '-' }} kg</td>
+<td>{{ data.latest_record.date if data.latest_record else '-' }}</td>
+<td>
 
-        {% with messages = get_flashed_messages(with_categories=true) %}
-          {% if messages %}
-            {% for category, message in messages %}
-              <div class="msg">{{ message }}</div>
-            {% endfor %}
-          {% endif %}
-        {% endwith %}
+<button class="btn btn-sm btn-primary text-white" data-bs-toggle="modal" data-bs-
+target="#graphModal-{{ data.info.id }}">
 
-        <h3>1. 신규 선수 등록</h3>
-        <form action="{{ url_for('add_athlete') }}" method="POST" style="display:flex; gap:10px;">
-            <input type="text" name="username" placeholder="선수 아이디" required style="flex:1;">
-            <input type="text" name="name" placeholder="선수 이름" required style="flex:1;">
-            <button type="submit" class="btn">선수 등록</button>
-        </form>
-    </div>
+그래프 보기
+</button>
+</td>
+</tr>
+{% endfor %}
+</tbody>
+</table>
+</div>
+{% for data in athlete_data %}
+<div class="modal fade" id="graphModal-{{ data.info.id }}" tabindex="-1" aria-hidden="true">
+<div class="modal-dialog modal-lg modal-dialog-centered">
+<div class="modal-content">
+<div class="modal-header">
+<h5 class="modal-title"> {{ data.info.name }} 선수의 체중 변화 추이</h5>
+<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></
+button>
+</div>
+<div class="modal-body">
+<div style="position: relative; height: 350px; width: 100%;">
+<canvas id="chart-{{ data.info.id }}"></canvas>
+</div>
+</div>
+<div class="modal-footer">
+<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">닫기</button>
+</div>
+</div>
+</div>
+</div>
+{% endfor %}
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+7
 
-    <div class="card">
-        <h3>2. 오늘({{ today }}) 선수별 체중 현황 및 감량 관리</h3>
-        <table>
-            <thead>
-                <tr>
-                    <th>선수 이름</th>
-                    <th>아이디</th>
-                    <th>목표 체중</th>
-                    <th>훈련 전(kg)</th>
-                    <th>훈련 후(kg)</th>
-                    <th>오늘 감량폭</th>
-                    <th>목표까지 잔여</th>
-                    <th>상세 기록</th>
-                    <th>선수 관리</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for athlete in athletes %}
-                {% set rec = (records | selectattr("user_id", "equalto", athlete.id) | list | first) %}
-                
-                {% set current_w = rec.weight_after if rec and rec.weight_after else (rec.weight_before if rec and rec.weight_before else None) %}
-                {% set rem_w = (current_w - athlete.target_weight) | round(2) if current_w and athlete.target_weight else None %}
-                
-                <tr>
-                    <td><strong>{{ athlete.name }}</strong></td>
-                    <td>{{ athlete.username }}</td>
-                    <td>
-                        {% if athlete.target_weight %}
-                            <strong style="color:#172033;">{{ athlete.target_weight }} kg</strong>
-                        {% else %}
-                            <span style="color:#999; font-size:12px;">미설정</span>
-                        {% endif %}
-                    </td>
-                    <td>{{ rec.weight_before if rec and rec.weight_before else '-' }}</td>
-                    <td>{{ rec.weight_after if rec and rec.weight_after else '-' }}</td>
-                    <td>
-                        {% if rec and rec.weight_before and rec.weight_after %}
-                            <span style="color: {% if rec.weight_after - rec.weight_before < 0 %}#2e7d32{% else %}#d9534f{% endif %}; font-weight:bold;">
-                                {{ (rec.weight_after - rec.weight_before) | round(2) }} kg
-                            </span>
-                        {% else %}
-                            -
-                        {% endif %}
-                    </td>
-                    <td>
-                        {% if rem_w is not none %}
-                            {% if rem_w <= 0 %}
-                                <span class="badge-done">달성! 🎉</span>
-                            {% else %}
-                                <strong style="color:#d9534f;">-{{ rem_w }} kg</strong>
-                            {% endif %}
-                        {% else %}
-                            -
-                        {% endif %}
-                    </td>
-                    <td>
-                        <button class="btn-view" onclick="openAthleteModal({{ athlete.id }})">📋 기록 보기</button>
-                    </td>
-                    <td>
-                        <form action="{{ url_for('delete_athlete', user_id=athlete.id) }}" method="POST" onsubmit="return confirm('정말 \'{{ athlete.name }}\' 선수를 삭제하시겠습니까?');">
-                            <button type="submit" class="btn-del">삭제</button>
-                        </form>
-                    </td>
-                </tr>
-                {% else %}
-                <tr>
-                    <td colspan="9">등록된 선수가 없습니다. 상단에서 선수를 등록해 주세요.</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
-
-    <!-- 개별 선수 기록 조회 모달 팝업 -->
-    <div id="athleteModal" class="modal-overlay" onclick="closeAthleteModal(event)">
-        <div class="modal-content" onclick="event.stopPropagation()">
-            <div class="modal-header">
-                <h3 id="modalTitle" style="margin:0;">선수 체중 이력</h3>
-                <button class="modal-close" onclick="closeAthleteModal()">&times;</button>
-            </div>
-            <div id="modalSubInfo" style="margin-bottom: 15px; font-size: 14px; color: #555;"></div>
-            <table>
-                <thead>
-                    <tr>
-                        <th>날짜</th>
-                        <th>훈련 전</th>
-                        <th>훈련 후</th>
-                        <th>훈련 감량폭</th>
-                    </tr>
-                </thead>
-                <tbody id="modalTableBody">
-                    <tr><td colspan="4">데이터를 불러오는 중...</td></tr>
-                </tbody>
-            </table>
-        </div>
-    </div>
-
-    <script>
-        function openAthleteModal(athleteId) {
-            const modal = document.getElementById('athleteModal');
-            const modalTitle = document.getElementById('modalTitle');
-            const modalSubInfo = document.getElementById('modalSubInfo');
-            const tableBody = document.getElementById('modalTableBody');
-
-            tableBody.innerHTML = '<tr><td colspan="4">데이터를 불러오는 중...</td></tr>';
-            modal.style.display = 'flex';
-
-            fetch('/athlete-records/' + athleteId)
-                .then(response => response.json())
-                .then(data => {
-                    modalTitle.innerText = data.name + ' (' + data.username + ') 선수의 전체 기록';
-                    modalSubInfo.innerText = '목표 체중: ' + (data.target_weight ? data.target_weight + ' kg' : '미설정');
-
-                    if (data.records.length === 0) {
-                        tableBody.innerHTML = '<tr><td colspan="4">기록된 데이터가 없습니다.</td></tr>';
-                        return;
-                    }
-
-                    let rowsHtml = '';
-                    data.records.forEach(r => {
-                        const beforeStr = r.weight_before !== null ? r.weight_before + ' kg' : '-';
-                        const afterStr = r.weight_after !== null ? r.weight_after + ' kg' : '-';
-                        const diffStr = r.diff !== null ? (r.diff + ' kg') : '-';
-                        const diffStyle = r.diff < 0 ? 'color:#2e7d32; font-weight:bold;' : 'color:#333;';
-
-                        rowsHtml += `
-                            <tr>
-                                <td>${r.date}</td>
-                                <td>${beforeStr}</td>
-                                <td>${afterStr}</td>
-                                <td style="${diffStyle}">${diffStr}</td>
-                            </tr>
-                        `;
-                    });
-                    tableBody.innerHTML = rowsHtml;
-                })
-                .catch(err => {
-                    tableBody.innerHTML = '<tr><td colspan="4" style="color:red;">데이터를 불러오는 중 오류가 발생했습니다.</td></tr>';
-                });
-        }
-
-        function closeAthleteModal(event) {
-            document.getElementById('athleteModal').style.display = 'none';
-        }
-
-        document.addEventListener('keydown', function(e) {
-            if (e.key === 'Escape') closeAthleteModal();
-        });
-    </script>
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+const charts = {};
+{% for data in athlete_data %}
+(function() {
+const athleteId = {{ data.info.id }};
+const modalEl = document.getElementById(`graphModal-${athleteId}`);
+const dates = {{ data.dates_json | safe }};
+const weights = {{ data.weights_json | safe }};
+const targetWeight = {{ data.info.target_weight or 'null' }};
+modalEl.addEventListener('shown.bs.modal', function () {
+const ctx = document.getElementById(`chart-${athleteId}`).getContext('2d');
+if (charts[athleteId]) { charts[athleteId].destroy(); }
+const datasets = [{
+label: '측정 체중 (kg)',
+data: weights,
+borderColor: '#0d6efd',
+backgroundColor: 'rgba(13, 110, 253, 0.1)',
+fill: true,
+tension: 0.2,
+pointRadius: 5
+}];
+if (targetWeight !== null) {
+datasets.push({
+label: '목표 체중 (kg)',
+data: Array(dates.length).fill(targetWeight),
+borderColor: '#dc3545',
+borderDash: [5, 5],
+pointRadius: 0,
+fill: false
+});
+}
+charts[athleteId] = new Chart(ctx, {
+type: 'line',
+data: { labels: dates, datasets: datasets },
+options: { responsive: true, maintainAspectRatio: false }
+});
+});
+})();
+{% endfor %}
+});
+</script>
 </body>
 </html>
