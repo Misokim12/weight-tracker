@@ -1,150 +1,68 @@
-import json
-from datetime import datetime, timedelta
 from flask import Flask, render_template, request, redirect, url_for, flash
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
+from werkzeug.security import generate_password_hash, check_password_hash
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'your-secret-key-here'
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///instance/weight.db'
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-app.config['REMEMBER_COOKIE_DURATION'] = timedelta(days=30)
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///weight.db'
 
 db = SQLAlchemy(app)
-login_manager = LoginManager(app)
-login_manager.login_view = 'login'
 
+# --- 1. User DB 모델 정의 ---
 class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False)
-    password = db.Column(db.String(120), nullable=False)
-    name = db.Column(db.String(80), nullable=False)
-    role = db.Column(db.String(20), nullable=False, default='athlete')
-    target_weight = db.Column(db.Float, nullable=True)
+    password_hash = db.Column(db.String(128), nullable=False)
+    role = db.Column(db.String(20), default="athlete")  # "admin" 또는 "athlete"
 
-class WeightRecord(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    weight = db.Column(db.Float, nullable=False)
-    training_log = db.Column(db.Text, nullable=True)
-    notes = db.Column(db.String(200), nullable=True)
-    date = db.Column(db.Date, nullable=False, default=datetime.utcnow)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    def set_password(self, password):
+        self.password_hash = generate_password_hash(password)
 
-@login_manager.user_loader
-def load_user(user_id):
-    return User.query.get(int(user_id))
+    def check_password(self, password):
+        return check_password_hash(self.password_hash, password)
 
-@app.route('/')
-def index():
-    if current_user.is_authenticated:
-        if current_user.role == 'admin':
-            return redirect(url_for('admin_dashboard'))
-        return redirect(url_for('athlete_dashboard'))
-    return redirect(url_for('login'))
-
-@app.route('/login', methods=['GET', 'POST'])
-def login():
-    if current_user.is_authenticated:
-        return redirect(url_for('index'))
-        
-    if request.method == 'POST':
-        username = request.form.get('username')
-        password = request.form.get('password')
-        remember = True if request.form.get('remember') else False
-        user = User.query.filter_by(username=username).first()
-        if user and user.password == password:
-            login_user(user, remember=remember)
-            return redirect(url_for('index'))
-        flash('아이디 또는 비밀번호가 올바르지 않습니다.')
-    return render_template('login.html')
-
-@app.route('/logout')
-@login_required
-def logout():
-    logout_user()
-    return redirect(url_for('login'))
-
-@app.route('/change-password', methods=['GET', 'POST'])
+# --- 2. 비밀번호 변경 라우트 ---
+@app.route("/change-password", methods=["GET", "POST"])
 @login_required
 def change_password():
-    if request.method == 'POST':
-        new_password = request.form.get('password')
-        if new_password:
-            current_user.password = new_password
-            db.session.commit()
-            flash('비밀번호가 성공적으로 변경되었습니다.')
-            return redirect(url_for('index'))
-        flash('새 비밀번호를 입력해주세요.')
-    return render_template('change_password.html')
+    user = current_user
+    if request.method == "POST":
+        current_pw = request.form.get("current_password", "")
+        new_pw = request.form.get("new_password", "")
+        confirm_pw = request.form.get("confirm_password", "")
 
-@app.route('/athlete', methods=['GET', 'POST'])
-@login_required
-def athlete_dashboard():
-    if request.method == 'POST':
-        weight = float(request.form.get('weight'))
-        training_log = request.form.get('training_log')
-        notes = request.form.get('notes')
-        date_str = request.form.get('date')
-        
-        record_date = datetime.strptime(date_str, '%Y-%m-%d').date() if date_str else datetime.utcnow().date()
-        
-        record = WeightRecord(
-            weight=weight,
-            training_log=training_log,
-            notes=notes,
-            date=record_date,
-            user_id=current_user.id
-        )
-        db.session.add(record)
+        if not user.check_password(current_pw):
+            flash("현재 비밀번호가 올바르지 않습니다.", "error")
+            return redirect(url_for("change_password"))
+
+        if len(new_pw) < 6:
+            flash("새 비밀번호는 6자 이상이어야 합니다.", "error")
+            return redirect(url_for("change_password"))
+
+        if new_pw != confirm_pw:
+            flash("새 비밀번호 확인이 일치하지 않습니다.", "error")
+            return redirect(url_for("change_password"))
+
+        user.set_password(new_pw)
         db.session.commit()
-        flash('성공적으로 기록되었습니다.')
-        return redirect(url_for('athlete_dashboard'))
+        flash("비밀번호가 성공적으로 변경되었습니다.", "success")
+        return redirect(url_for("index"))
 
-    today = datetime.utcnow().date()
-    has_today_record = WeightRecord.query.filter_by(
-        user_id=current_user.id,
-        date=today
-    ).first() is not None
+    return render_template("change_password.html")
 
-    records = WeightRecord.query.filter_by(user_id=current_user.id).order_by(WeightRecord.date.desc()).all()
-    chart_records = WeightRecord.query.filter_by(user_id=current_user.id).order_by(WeightRecord.date.asc()).all()
+# --- 3. DB 초기화 CLI 명령어 (User 클래스 아래에 위치) ---
+@app.cli.command("init-db")
+def init_db_command():
+    """데이터베이스를 초기화하고 초기 관리자(coach) 계정을 생성합니다."""
+    db.create_all()
     
-    dates_json = json.dumps([r.date.strftime('%Y-%m-%d') for r in chart_records])
-    weights_json = json.dumps([r.weight for r in chart_records])
-    
-    return render_template('index.html',
-                           records=records,
-                           dates_json=dates_json,
-                           weights_json=weights_json,
-                           has_today_record=has_today_record)
-
-@app.route('/admin')
-@login_required
-def admin_dashboard():
-    if current_user.role != 'admin':
-        flash('지도자 권한이 필요합니다.')
-        return redirect(url_for('index'))
-        
-    athletes = User.query.filter_by(role='athlete').all()
-    athlete_data = []
-    
-    for athlete in athletes:
-        latest_record = WeightRecord.query.filter_by(user_id=athlete.id).order_by(WeightRecord.date.desc()).first()
-        chart_records = WeightRecord.query.filter_by(user_id=athlete.id).order_by(WeightRecord.date.asc()).all()
-        
-        dates = [r.date.strftime('%Y-%m-%d') for r in chart_records]
-        weights = [r.weight for r in chart_records]
-        
-        athlete_data.append({
-            'info': athlete,
-            'latest_record': latest_record,
-            'dates_json': json.dumps(dates),
-            'weights_json': json.dumps(weights)
-        })
-        
-    return render_template('admin.html', athlete_data=athlete_data)
-
-if __name__ == '__main__':
-    with app.app_context():
-        db.create_all()
-    app.run(debug=True)
+    coach = User.query.filter_by(username="coach").first()
+    if not coach:
+        coach = User(username="coach", role="admin")
+        coach.set_password("CHANGE_ME_NOW")
+        db.session.add(coach)
+        db.session.commit()
+        print("관리자 생성 완료: coach")
+    else:
+        print("이미 관리자 계정이 존재합니다.")
