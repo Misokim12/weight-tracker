@@ -1,109 +1,83 @@
-{% extends "base.html" %}
+{% extends "base.html" if bootstrap_exists else "login.html" %}
 
 {% block content %}
-<div class="container mt-4">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h2>🏋️ My Weight Dashboard</h2>
-        <div>
-            <span class="me-3">환영합니다, <strong>{{ current_user.username }}</strong>선수님!</span>
-            <a href="{{ url_for('change_password') }}" class="btn btn-outline-secondary btn-sm">비밀번호 변경</a>
-            <a href="{{ url_for('logout') }}" class="btn btn-outline-danger btn-sm">로그아웃</a>
-        </div>
-    </div>
+<h2>🏋️ My Weight Dashboard</h2>
+<p>환영합니다, <strong>{{ current_user.username }}</strong>선수님!</p>
+<a href="{{ url_for('change_password') }}">비밀번호 변경</a> | 
+<a href="{{ url_for('logout') }}">로그아웃</a>
+<hr>
 
-    <!-- 체중 입력 폼 -->
-    <div class="card mb-4 shadow-sm">
-        <div class="card-header bg-primary text-white">
-            <h5 class="card-title mb-0">오늘의 체중 및 훈련일지 기록</h5>
-        </div>
-        <div class="card-body">
-            <form action="{{ url_for('athlete_records', user_id=current_user.id) }}" method="POST">
-                <div class="row g-3">
-                    <div class="col-md-3">
-                        <label class="form-label">날짜</label>
-                        <input type="date" class="form-control" name="date" required>
-                    </div>
-                    <div class="col-md-3">
-                        <label class="form-label">훈련 전 체중 (kg)</label>
-                        <input type="number" step="0.1" class="form-control" name="weight_before" placeholder="예: 73.5" required>
-                    </div>
-                    <div class="col-md-3">
-                        <label class="form-label">훈련 후 체중 (kg)</label>
-                        <input type="number" step="0.1" class="form-control" name="weight_after" placeholder="예: 72.2">
-                    </div>
-                    <div class="col-md-3 d-flex align-items-end">
-                        <button type="submit" class="btn btn-primary w-100">기록 저장</button>
-                    </div>
-                    <div class="col-12">
-                        <label class="form-label">훈련일지 / 메모</label>
-                        <textarea class="form-control" name="note" rows="2" placeholder="오늘의 훈련 내용 및 컨디션을 입력하세요."></textarea>
-                    </div>
-                </div>
-            </form>
-        </div>
+<h3>오늘의 체중 및 훈련일지 기록</h3>
+<form action="{{ url_for('athlete_records', user_id=current_user.id) }}" method="POST">
+    <div>
+        <label>날짜:</label>
+        <input type="date" name="date" required>
     </div>
-
-    <!-- 체중 기록 테이블 -->
-    <div class="card shadow-sm">
-        <div class="card-header bg-dark text-white">
-            <h5 class="card-title mb-0">내 체중 기록 및 감량 현황</h5>
-        </div>
-        <div class="card-body p-0">
-            <div class="table-responsive">
-                <table class="table table-hover align-middle mb-0 text-center">
-                    <thead class="table-light">
-                        <tr>
-                            <th>날짜</th>
-                            <th>훈련 전 (kg)</th>
-                            <th>훈련 후 (kg)</th>
-                            <th>오늘 감량폭</th>
-                            <th>목표 체중까지</th>
-                            <th class="text-start">훈련일지</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for record in records %}
-                        <tr>
-                            <td>{{ record.date.strftime('%Y-%m-%d') }}</td>
-                            <td>{{ record.weight_before }} kg</td>
-                            <td>{{ record.weight_after if record.weight_after else '-' }} kg</td>
-                            
-                            <!-- 오늘 감량폭 -->
-                            <td>
-                                {% if record.weight_after and record.weight_before %}
-                                    {% set loss = (record.weight_after - record.weight_before) | round(2) %}
-                                    <span class="badge bg-danger fs-6">
-                                        {{ loss }} kg
-                                    </span>
-                                {% else %}
-                                    <span class="text-muted">-</span>
-                                {% endif %}
-                            </td>
-
-                            <!-- 목표 체중 잔여 -->
-                            <td>
-                                {% if record.weight_after and current_user.target_weight %}
-                                    {% set diff = (record.weight_after - current_user.target_weight) | round(2) %}
-                                    {% if diff <= 0 %}
-                                        <span class="badge bg-success">달성 완료! 🎉</span>
-                                    {% else %}
-                                        <span class="badge bg-warning text-dark">+{{ diff }} kg</span>
-                                    {% endif %}
-                                {% else %}
-                                    <span class="text-muted">-</span>
-                                {% endif %}
-                            </td>
-                            <td class="text-start">{{ record.note if record.note else '-' }}</td>
-                        </tr>
-                        {% else %}
-                        <tr>
-                            <td colspan="6" class="text-muted py-4">아직 등록된 체중 기록이 없습니다.</td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-        </div>
+    <div>
+        <label>훈련 전 체중 (kg):</label>
+        <input type="number" step="0.1" name="weight_before" placeholder="예: 73.5" required>
     </div>
-</div>
+    <div>
+        <label>훈련 후 체중 (kg):</label>
+        <input type="number" step="0.1" name="weight_after" placeholder="예: 72.2">
+    </div>
+    <div>
+        <label>훈련일지 / 메모:</label><br>
+        <textarea name="note" rows="2" cols="40" placeholder="오늘의 훈련 내용 및 컨디션을 입력하세요."></textarea>
+    </div>
+    <button type="submit">기록 저장</button>
+</form>
+
+<hr>
+
+<h3>내 체중 기록 및 감량 현황</h3>
+<table border="1" cellpadding="8" cellspacing="0">
+    <thead>
+        <tr>
+            <th>날짜</th>
+            <th>훈련 전 (kg)</th>
+            <th>훈련 후 (kg)</th>
+            <th>오늘 감량폭</th>
+            <th>목표 체중까지</th>
+            <th>훈련일지</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for record in records %}
+        <tr>
+            <td>{{ record.date.strftime('%Y-%m-%d') }}</td>
+            <td>{{ record.weight_before }} kg</td>
+            <td>{{ record.weight_after if record.weight_after else '-' }} kg</td>
+            
+            <!-- 딱 요청하신 '오늘 감량폭' 항목 추가 -->
+            <td>
+                {% if record.weight_after and record.weight_before %}
+                    {{ (record.weight_after - record.weight_before) | round(2) }} kg
+                {% else %}
+                    -
+                {% endif %}
+            </td>
+
+            <!-- 목표 체중 대비 잔여 체중 -->
+            <td>
+                {% if record.weight_after and current_user.target_weight %}
+                    {% set diff = (record.weight_after - current_user.target_weight) | round(2) %}
+                    {% if diff <= 0 %}
+                        달성 완료! 🎉
+                    {% else %}
+                        +{{ diff }} kg
+                    {% endif %}
+                {% else %}
+                    -
+                {% endif %}
+            </td>
+            <td>{{ record.note if record.note else '-' }}</td>
+        </tr>
+        {% else %}
+        <tr>
+            <td colspan="6">아직 등록된 체중 기록이 없습니다.</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
 {% endblock %}
